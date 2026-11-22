@@ -1,0 +1,181 @@
+# OCS Local Bank · 本地题库服务
+
+为 OCS 网课助手提供**本地题库优先 + AI 兜底**的搜题接口。
+
+零依赖（只用 Node.js 内置模块）、单文件服务、自带可视化配置页，Windows 下双击即用，也支持打包成免安装便携版。
+
+---
+
+## 特性
+
+- **本地题库优先**：先查 `题库.json`，毫秒级命中，不消耗任何 AI 额度
+- **AI 兜底**：未命中时调用任意 OpenAI 兼容接口（智谱 / DeepSeek / OpenAI / OpenRouter / 本地 Ollama）
+- **答案自动沉淀**：AI 答出的题自动回写题库，同一题只花一次额度
+- **模糊匹配**：自动忽略标点、空格、题号、题型前缀和 LaTeX 标记，题干略有差异也能命中
+- **限流保护**：串行排队 + 最小间隔 + 429 退避重试 + 全局冷却 + 备用模型
+- **图片/公式题**：支持 OCS 的 `images` 字段，公式题可正常参与匹配
+- **Web 配置页**：浏览器里改模型、密钥、阈值，保存立即生效
+- **多设备共用**：`/ocs-config` 按访问地址动态生成 OCS 配置，换电脑换 IP 都不用改
+- **隐私安全**：密钥只存本地 `config.json`，管理接口仅允许本机访问
+
+---
+
+## 快速开始
+
+### Windows（推荐）
+
+1. 安装 [Node.js](https://nodejs.org/) 18 以上版本
+2. 双击 `启动.bat`
+3. 浏览器打开 <http://127.0.0.1:8899/config> 完成 AI 配置（后可跳过）
+4. 浏览器打开 <http://127.0.0.1:8899/ocs-config>，复制页面返回的 JSON
+5. 粘贴到 OCS 面板 → 通用 → 全局设置 → 题库配置 → 保存
+
+### macOS / Linux
+
+```bash
+node server.mjs
+# 或指定端口
+PORT=9000 node server.mjs
+```
+
+### 免安装便携版
+
+```powershell
+powershell -ExecutionPolicy Bypass -File build-portable.ps1
+```
+
+会下载官方 Node 压缩包并把 `node.exe` 打进 `便携版/` 目录（约 89MB）。整个文件夹复制到任何 Windows 电脑，双击 `启动.bat` 即可，无需安装 Node。
+
+---
+
+## 在其他电脑 / 手机上使用
+
+服务只需要在一台机器上跑，其他设备通过局域网访问：
+
+1. 启动后窗口会显示可用地址，例如 `http://192.168.0.100:8899`
+2. 在其他设备的浏览器打开 `http://192.168.0.100:8899/ocs-config`
+3. 复制返回的 JSON 粘到那台设备的 OCS 题库配置即可
+
+首次连接需要在服务所在电脑放行端口（管理员 PowerShell，执行一次）：
+
+```powershell
+netsh advfirewall firewall add rule name="OCS本地题库" dir=in action=allow protocol=TCP localport=8899
+```
+
+---
+
+## 配置说明
+
+`config.json` 首次启动会自动从 `config.example.json` 生成。
+
+| 字段 | 说明 |
+| --- | --- |
+| `host` / `port` | 监听地址与端口，`0.0.0.0` 表示允许局域网访问 |
+| `threshold` | 题库匹配相似度阈值，0~1，越大越严格（默认 0.6） |
+| `serverToken` | 可选。填写后调用 `/add` 需带请求头 `X-Token` |
+| `ai.enable` | 是否启用 AI 兜底 |
+| `ai.provider` / `ai.baseUrl` | 服务商标识与接口地址（OpenAI 兼容格式） |
+| `ai.apiKey` | 密钥，仅保存在本地 |
+| `ai.model` / `ai.fallbackModel` | 主模型与超时后自动切换的备用模型 |
+| `ai.minInterval` | 两次 AI 请求的最小间隔（毫秒），用于规避速率限制 |
+| `ai.maxRetries` | 遇到 429/503 时的重试次数 |
+| `ai.cacheToBank` | 是否把 AI 答案写回题库 |
+
+### 题库格式
+
+`题库.json` 是一个数组，也可以写成 `{ "题目": "答案" }` 对象：
+
+```json
+[
+  { "question": "以下哪一项属于操作系统的功能", "answer": "进程管理#内存管理#文件管理#设备管理" },
+  { "question": "谁提出了科学技术是第一生产力", "answer": "B" }
+]
+```
+
+规则：
+
+- `answer` 必须是字符串；**多选题用 `#` 连接**，不要写成数组
+- 判断题写 `正确` / `错误`
+- 题目不用写题号、题型前缀，匹配时会自动忽略
+- AI 生成的条目会带 `"source": "AI"`，方便抽查
+
+---
+
+## HTTP 接口
+
+| 方法 | 路径 | 说明 |
+| --- | --- | --- |
+| GET | `/health` | 健康检查，返回版本、题库数量、AI 状态 |
+| GET | `/ocs-config` | 按当前访问地址生成 OCS 题库配置 |
+| POST | `/search` | 搜题，参数 `title` `options` `type` `images` |
+| POST | `/add` | 补充答案，参数 `question` `answer`（可配合 `serverToken`） |
+| GET | `/config` | 可视化配置页 |
+| GET | `/api/status` | 运行状态（题库数量、未解决数量、运行时长） |
+| GET | `/api/providers` | 预置服务商与模型列表 |
+| GET | `/api/config` | 读取配置（密钥脱敏） |
+| PUT | `/api/config` | 部分更新配置，立即生效 |
+| POST | `/api/config/test` | 测试当前 AI 接口连通性 |
+
+`/api/*` 与 `/config` **仅允许本机访问**，局域网其他设备调用会返回 403。
+
+示例：
+
+```bash
+# 查看状态
+curl http://127.0.0.1:8899/api/status
+
+# 切换模型
+curl -X PUT http://127.0.0.1:8899/api/config \
+  -H "Content-Type: application/json" \
+  -d '{"model":"glm-5.3-flash","enable":true}'
+
+# 补充一道题
+curl -X POST http://127.0.0.1:8899/add \
+  -H "Content-Type: application/json" \
+  -d '{"question":"水的化学式是什么","answer":"H2O"}'
+```
+
+---
+
+## 目录结构
+
+```
+ocs-local-bank/
+├─ server.mjs            服务主程序（零依赖）
+├─ public/index.html     可视化配置页
+├─ config.example.json   配置模板（首次启动复制为 config.json）
+├─ 题库.example.json     题库模板（首次启动复制为 题库.json）
+├─ 启动.bat / 停止.bat     Windows 一键启停
+├─ 改模型.bat / .ps1     交互式切换模型
+├─ build-portable.ps1    生成免安装便携版
+└─ README.md
+```
+
+运行后还会生成（已在 `.gitignore` 中忽略）：
+
+- `config.json`：你的实际配置，**含密钥，不要提交**
+- `题库.json`：你的答案库
+- `未命中.json`：题库与 AI 都没答出来的题，可当作待补清单
+
+---
+
+## 常见问题
+
+| 现象 | 处理 |
+| --- | --- |
+| 启动提示端口被占用 | 服务已在运行，先双击 `停止.bat`，或直接访问 `/config` |
+| OCS 提示请求失败 | 确认服务窗口没被关掉；检查 `@connect` 是否包含该域名或使用全域名版本 |
+| 提示 `请求频率超限` | 调大 `ai.minInterval`，或换限额更宽松的模型 |
+| 提示 `余额不足` | 换用有额度的模型，或检查 `ai.model` 是否为按次计费模型 |
+| 题库一直不命中 | 查看 `未命中.json`；适当调低 `threshold` |
+| AI 答错却被固化 | 打开 `题库.json` 搜 `"source": "AI"`，直接改 `answer` |
+
+---
+
+## 免责声明
+
+本项目仅用于个人学习与技术研究，方便在本地整理课程练习题目。请遵守你所在学习平台的使用条款与学校规定，因不当使用产生的一切后果由使用者自行承担。
+
+## License
+
+[MIT](./LICENSE)

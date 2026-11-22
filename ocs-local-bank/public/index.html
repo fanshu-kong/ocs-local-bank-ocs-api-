@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>OCS 本地题库 · 配置</title>
+<style>
+  :root {
+    --bg: #f5f6f8;
+    --card: #ffffff;
+    --text: #1b1f24;
+    --muted: #6b7280;
+    --line: #e5e7eb;
+    --brand: #2563eb;
+    --ok: #067647;
+    --ok-bg: #ecfdf3;
+    --err: #b42318;
+    --err-bg: #fef3f2;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1115;
+      --card: #171a21;
+      --text: #e6e8eb;
+      --muted: #9aa4b2;
+      --line: #262b35;
+      --brand: #3b82f6;
+      --ok-bg: #10281c;
+      --err-bg: #2a1415;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 32px 18px 56px;
+    font: 15px/1.65 system-ui, -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
+    background: var(--bg); color: var(--text);
+  }
+  .wrap { max-width: 640px; margin: 0 auto; }
+  header { margin-bottom: 20px; }
+  h1 { margin: 0 0 6px; font-size: 20px; letter-spacing: .3px; }
+  .sub { margin: 0; color: var(--muted); font-size: 13px; }
+  .card {
+    background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+    padding: 22px; box-shadow: 0 8px 28px rgba(16, 24, 40, .05);
+  }
+  .card + .card { margin-top: 16px; }
+  h2 { margin: 0 0 16px; font-size: 14px; color: var(--muted); font-weight: 600; letter-spacing: .5px; }
+  label { display: block; margin-bottom: 14px; font-size: 13px; color: var(--muted); }
+  input[type=text], input[type=number], select {
+    width: 100%; margin-top: 6px; padding: 10px 12px;
+    border: 1px solid var(--line); border-radius: 9px;
+    font-size: 14px; color: var(--text); background: var(--bg);
+    font-family: inherit;
+  }
+  input:focus, select:focus { outline: 2px solid rgba(37, 99, 235, .25); border-color: var(--brand); }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 14px; }
+  .check { display: flex; align-items: center; gap: 9px; color: var(--text); font-size: 14px; margin-bottom: 12px; }
+  .check input { width: 16px; height: 16px; accent-color: var(--brand); }
+  .btns { display: flex; gap: 10px; margin-top: 20px; }
+  button {
+    flex: 1; padding: 11px 16px; border-radius: 9px; font-size: 14px; cursor: pointer;
+    border: 1px solid transparent; font-family: inherit; transition: .15s;
+  }
+  button.primary { background: var(--brand); color: #fff; }
+  button.primary:hover { filter: brightness(1.06); }
+  button.ghost { background: transparent; border-color: var(--line); color: var(--text); }
+  button.ghost:hover { background: rgba(127, 127, 127, .08); }
+  #msg { margin-top: 16px; padding: 11px 13px; border-radius: 9px; font-size: 13px; display: none; line-height: 1.6; }
+  #msg.ok { display: block; background: var(--ok-bg); color: var(--ok); }
+  #msg.err { display: block; background: var(--err-bg); color: var(--err); }
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 4px; }
+  .stat { background: var(--bg); border-radius: 10px; padding: 12px; text-align: center; }
+  .stat b { display: block; font-size: 18px; }
+  .stat span { font-size: 12px; color: var(--muted); }
+  .hint { font-size: 12px; color: var(--muted); margin-top: 8px; line-height: 1.7; }
+  code { font-family: ui-monospace, Consolas, monospace; background: rgba(127,127,127,.12); padding: 1px 5px; border-radius: 4px; }
+  footer { margin-top: 22px; text-align: center; color: var(--muted); font-size: 12px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>OCS 本地题库 · 配置</h1>
+    <p class="sub">修改后立即生效，无需重启。管理接口仅允许本机访问。</p>
+  </header>
+
+  <div class="card">
+    <h2>运行状态</h2>
+    <div class="stats">
+      <div class="stat"><b id="statBank">-</b><span>题库条目</span></div>
+      <div class="stat"><b id="statMiss">-</b><span>未解决题目</span></div>
+      <div class="stat"><b id="statAi">-</b><span>AI 状态</span></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>AI 接口</h2>
+    <form id="form">
+      <label>服务商
+        <select id="provider"></select>
+      </label>
+
+      <div class="grid2">
+        <label>模型
+          <select id="model"></select>
+        </label>
+        <label>或手动输入模型名
+          <input type="text" id="modelCustom" placeholder="留空则用上面选择的模型">
+        </label>
+      </div>
+
+      <label>接口地址 baseUrl
+        <input type="text" id="baseUrl" placeholder="https://open.bigmodel.cn/api/paas/v4">
+      </label>
+
+      <label>API Key
+        <input type="text" id="apiKey" autocomplete="off" placeholder="填写后保存；留空表示不修改">
+      </label>
+
+      <div class="grid2">
+        <label>请求最小间隔（毫秒）
+          <input type="number" id="minInterval" min="0" step="100" value="1500">
+        </label>
+        <label>匹配阈值（0~1）
+          <input type="number" id="threshold" min="0.1" max="1" step="0.05" value="0.6">
+        </label>
+      </div>
+
+      <label class="check"><input type="checkbox" id="enable"> 启用 AI 兜底（题库未命中时才调用）</label>
+      <label class="check"><input type="checkbox" id="cacheToBank"> AI 答案自动回写题库</label>
+
+      <div class="btns">
+        <button type="submit" class="primary">保存</button>
+        <button type="button" class="ghost" id="btnTest">测试连接</button>
+      </div>
+      <div id="msg"></div>
+      <p class="hint">
+        说明：<code>minInterval</code> 用于避免触发平台速率限制，被限流时适当调大；
+        <code>cacheToBank</code> 开启后同一道题只消耗一次额度，但 AI 答案可能有误，建议定期抽查题库中带 <code>"source": "AI"</code> 的条目。
+      </p>
+    </form>
+  </div>
+
+  <footer>
+    导入 OCS：浏览器打开 <code>/ocs-config</code> 复制 JSON，粘贴到 OCS 题库配置
+  </footer>
+</div>
+
+<script>
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  var providers = [];
+  var current = {};
+
+  function show(ok, text) {
+    var m = $('msg');
+    m.className = ok ? 'ok' : 'err';
+    m.textContent = text;
+  }
+
+  function fillModels(providerId, selected) {
+    var p = providers.filter(function (x) { return x.id === providerId; })[0];
+    var sel = $('model');
+    sel.innerHTML = '';
+    if (!p) return;
+    p.models.forEach(function (m) {
+      var opt = document.createElement('option');
+      opt.value = m.id;
+      opt.textContent = m.note ? m.id + '（' + m.note + '）' : m.id;
+      if (m.id === selected) opt.selected = true;
+      sel.appendChild(opt);
+    });
+    $('baseUrl').value = p.baseUrl;
+  }
+
+  function loadStatus() {
+    fetch('/api/status').then(function (r) { return r.json(); }).then(function (res) {
+      if (!res || !res.data) return;
+      $('statBank').textContent = res.data.bankSize;
+      $('statMiss').textContent = res.data.missSize;
+      $('statAi').textContent = res.data.ai.enable ? (res.data.ai.apiKey ? '已启用' : '缺密钥') : '未启用';
+    }).catch(function () {});
+  }
+
+  function loadConfig() {
+    fetch('/api/config').then(function (r) { return r.json(); }).then(function (res) {
+      var d = res.data || {};
+      current = d;
+      $('enable').checked = !!d.enable;
+      $('cacheToBank').checked = !!d.cacheToBank;
+      $('minInterval').value = d.minInterval != null ? d.minInterval : 1500;
+      $('threshold').value = d.threshold != null ? d.threshold : 0.6;
+      $('baseUrl').value = d.baseUrl || '';
+      $('apiKey').placeholder = d.apiKey ? '当前 ' + d.apiKey + '，留空不修改' : '尚未填写';
+
+      var matchProvider = providers.filter(function (p) {
+        return p.baseUrl === d.baseUrl || p.id === d.provider;
+      })[0];
+      if (matchProvider) {
+        $('provider').value = matchProvider.id;
+        fillModels(matchProvider.id, d.model);
+        if (d.model && $('model').value !== d.model) $('modelCustom').value = d.model;
+      }
+    }).catch(function () {});
+  }
+
+  fetch('/api/providers').then(function (r) { return r.json(); }).then(function (res) {
+    providers = res.data || [];
+    var sel = $('provider');
+    providers.forEach(function (p) {
+      var opt = document.createElement('option');
+      opt.value = p.id;
+      opt.textContent = p.name;
+      sel.appendChild(opt);
+    });
+    sel.addEventListener('change', function () {
+      fillModels(sel.value, null);
+      $('modelCustom').value = '';
+    });
+    loadConfig();
+  }).catch(function () {
+    show(false, '读取服务商列表失败，请确认服务已启动');
+  });
+
+  loadStatus();
+  setInterval(loadStatus, 10000);
+
+  $('form').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var model = $('modelCustom').value.trim() || $('model').value;
+    var body = {
+      provider: $('provider').value,
+      baseUrl: $('baseUrl').value.trim(),
+      model: model,
+      enable: $('enable').checked,
+      cacheToBank: $('cacheToBank').checked,
+      minInterval: Number($('minInterval').value),
+      threshold: Number($('threshold').value)
+    };
+    var key = $('apiKey').value.trim();
+    if (key) body.apiKey = key;
+
+    fetch('/api/config', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    }).then(function (r) { return r.json(); }).then(function (res) {
+      if (res.code === 1) {
+        show(true, '已保存并立即生效，当前模型：' + res.data.model);
+        $('apiKey').value = '';
+        loadStatus();
+        loadConfig();
+      } else {
+        show(false, res.msg || '保存失败');
+      }
+    }).catch(function (err) {
+      show(false, '保存失败：' + err.message);
+    });
+  });
+
+  $('btnTest').addEventListener('click', function () {
+    show(true, '正在测试连接...');
+    fetch('/api/config/test', { method: 'POST' }).then(function (r) { return r.json(); }).then(function (r) {
+      if (r.ok) {
+        show(true, '连接正常：' + r.model + '，耗时 ' + r.ms + 'ms，返回「' + (r.reply || '空') + '」');
+      } else {
+        show(false, '连接失败：' + r.error);
+      }
+    }).catch(function (err) {
+      show(false, '测试失败：' + err.message);
+    });
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,18 @@
+{
+  "host": "0.0.0.0",
+  "port": 8899,
+  "threshold": 0.6,
+  "serverToken": "",
+  "ai": {
+    "enable": false,
+    "provider": "zhipu",
+    "baseUrl": "https://open.bigmodel.cn/api/paas/v4",
+    "apiKey": "",
+    "model": "glm-5.3-flash",
+    "fallbackModel": "",
+    "timeout": 30000,
+    "minInterval": 1500,
+    "maxRetries": 2,
+    "cacheToBank": true
+  }
+}
